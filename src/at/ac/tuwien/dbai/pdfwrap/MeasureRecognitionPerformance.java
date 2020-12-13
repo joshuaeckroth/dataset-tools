@@ -43,6 +43,8 @@ import at.ac.tuwien.dbai.pdfwrap.utils.ListUtils;
 import at.ac.tuwien.dbai.pdfwrap.utils.SegmentUtils;
 import at.ac.tuwien.dbai.pdfwrap.utils.Utils;
 
+import aalmi.HungarianAlgorithm;
+
 public class MeasureRecognitionPerformance
 {
 
@@ -636,7 +638,8 @@ public class MeasureRecognitionPerformance
         
         List<Table> gtTables = new ArrayList<Table>();
         List<Table> resultTables = new ArrayList<Table>();
-        List<Table> remainingTables = new ArrayList<Table>();
+        List<Table> remainingGtTables = new ArrayList<Table>();
+        List<Table> remainingResultTables = new ArrayList<Table>();
         
         // loop through tables
         NodeList tableNodes = inputResultDocument.getElementsByTagName("table");
@@ -661,10 +664,16 @@ public class MeasureRecognitionPerformance
 //    		GTARs.add(tab.findAdjacencyRelations());
     		gtTables.add(tab);
     	}
+
+        /*
+        
+        // duplicate gt table list
+        for (Table t: gtTables)
+            remainingGtTables.add(t);
     	
     	// duplicate result table list
     	for (Table t : resultTables)
-    		remainingTables.add(t);
+    		remainingResultTables.add(t);
     	
     	int index = -1;
     	for (Table gtTable : gtTables)
@@ -673,7 +682,7 @@ public class MeasureRecognitionPerformance
     		
     		// obtain list of tables on same page
     		List<Table> resultsOnPage = new ArrayList<Table>();
-    		for (Table resultTable : remainingTables)
+    		for (Table resultTable : remainingResultTables)
     			if (!pageCheck || resultTable.pageNo == gtTable.pageNo)
 //    			if (true) // ana!
     				resultsOnPage.add(resultTable);
@@ -719,7 +728,7 @@ public class MeasureRecognitionPerformance
 //    			alignedResultARs.add(matchingResult);
     			resultARs.remove(matchingResult);
 //    			System.out.println("matchingResult: " + tableHash.get(matchingResult));
-    			remainingTables.remove(tableHash.get(matchingResult));
+    			remainingResultTables.remove(tableHash.get(matchingResult));
     		}
     		else
     		{
@@ -754,12 +763,131 @@ public class MeasureRecognitionPerformance
     			System.out.println("no matching result found");
     		}
     	}
-    	if (remainingTables.size() > 0)
-    		System.out.println("!!!!!!!!!! " + remainingTables.size() + " FALSE POSITIVE TABLES FOUND !!!!!!!!!!!!");
-    	for (Table t : remainingTables)
+    	if (remainingResultTables.size() > 0)
+    		System.out.println("!!!!!!!!!! " + remainingResultTables.size() + " FALSE POSITIVE TABLES FOUND !!!!!!!!!!!!");
+    	for (Table t : remainingResultTables)
     	{
     		System.out.println("FP table with " + t.findAdjacencyRelations().size() + " adjacency relations");
     	}
+        */
+
+        int maxpage = 1;
+        for(Table gtTable : gtTables) {
+            if(gtTable.pageNo > maxpage) {
+                maxpage = gtTable.pageNo;
+            }
+        }
+        for(Table resultTable : resultTables) {
+            if(resultTable.pageNo > maxpage) {
+                maxpage = resultTable.pageNo;
+            }
+        }
+
+        for(int page = 1; page <= maxpage; page++) {
+            System.out.println("===========");
+            System.out.println("Page: " + page);
+
+    		List<Table> gtOnPage = new ArrayList<Table>();
+    		List<Table> resultOnPage = new ArrayList<Table>();
+            for(Table gtTable : gtTables) {
+                if(gtTable.pageNo == page) {
+                    gtOnPage.add(gtTable);
+                }
+            }
+            for(Table resultTable : resultTables) {
+                if(resultTable.pageNo == page) {
+                    resultOnPage.add(resultTable);
+                }
+            }
+
+            // NxN assignment problem formulation
+            System.out.println();
+            System.out.println("GT table count: " + gtOnPage.size());
+            System.out.println("Result table count: " + resultOnPage.size());
+            int n = Math.max(gtOnPage.size(), resultOnPage.size());
+            int[][] scoreMatrix = new int[n][n];
+            for(int gt_table_idx = 0; gt_table_idx < n; gt_table_idx++) {
+                for(int r_table_idx = 0; r_table_idx < n; r_table_idx++) {
+                    //System.out.println("gt_table_idx " + gt_table_idx + ", r_table_idx " + r_table_idx);
+                    if(gt_table_idx >= gtOnPage.size()) {
+                        // still have result tables, ran out of ground truth tables, record this score as 0 (FP)
+                        scoreMatrix[gt_table_idx][r_table_idx] = 0;
+                    } else if(r_table_idx >= resultOnPage.size()) {
+                        // still have ground truth tables, ran out of result tables, record this score as 0 (FN)
+                        scoreMatrix[gt_table_idx][r_table_idx] = 0;
+                    } else {
+                        List<AdjacencyRelation> gtAR = gtOnPage.get(gt_table_idx).findAdjacencyRelations();
+                        List<AdjacencyRelation> resultAR = resultOnPage.get(r_table_idx).findAdjacencyRelations();
+                        int corrDet = compareARs(gtAR, resultAR, false, normRule);
+                        //System.out.println("corrDet: " + corrDet);
+                        if(corrDet == 0) {
+                            scoreMatrix[gt_table_idx][r_table_idx] = 0;
+                        } else {
+                            double prec = (double)corrDet / resultAR.size();
+                            double recall = (double)corrDet / gtAR.size();
+                            double f1 = 2*prec*recall/(prec+recall);
+                            //System.out.println("prec: " + prec);
+                            //System.out.println("recall: " + recall);
+                            //System.out.println("f1: " + f1);
+                            scoreMatrix[gt_table_idx][r_table_idx] = (int)(-10000*f1); // two decimal places, e.g., 97.32 == 9732; and convert to negative since algorithm will minimize
+                        }
+                    }
+                }
+            }
+            System.out.println();
+            int[][] scoreMatrixCopy = new int[n][n];
+            for(int r_table_idx = 0; r_table_idx < n; r_table_idx++) {
+                System.out.print("\tRT:" + r_table_idx);
+            }
+            System.out.println();
+            for(int gt_table_idx = 0; gt_table_idx < n; gt_table_idx++) {
+                System.out.print("GT:" + gt_table_idx);
+                for(int r_table_idx = 0; r_table_idx < n; r_table_idx++) {
+                    System.out.print("\t" + ((double)-scoreMatrix[gt_table_idx][r_table_idx]/10000));
+                    scoreMatrixCopy[gt_table_idx][r_table_idx] = scoreMatrix[gt_table_idx][r_table_idx];
+                }
+                System.out.println();
+            }
+            System.out.println();
+
+            //find optimal assignment
+            HungarianAlgorithm ha = new HungarianAlgorithm(scoreMatrix);
+            int[][] assignment = ha.findOptimalAssignment();
+
+            if (assignment.length > 0) {
+                // print assignment
+                for (int i = 0; i < assignment.length; i++) {
+                    //System.out.println("GT " + assignment[i][1] + " => Result " + assignment[i][0] + " (" + scoreMatrixCopy[assignment[i][1]][assignment[i][0]] + ")");
+                    System.out.println("GT table " + assignment[i][1] + ":");
+                    int gt_table_idx = assignment[i][1];
+                    int r_table_idx = assignment[i][0];
+                    if(gt_table_idx >= gtOnPage.size()) {
+                        System.out.println("\tFP table");
+                    } else if(r_table_idx >= resultOnPage.size()) {
+                        System.out.println("\tFN table");
+                    } else {
+                        List<AdjacencyRelation> gtAR = gtOnPage.get(gt_table_idx).findAdjacencyRelations();
+                        List<AdjacencyRelation> resultAR = resultOnPage.get(r_table_idx).findAdjacencyRelations();
+                        int corrDet = compareARs(gtAR, resultAR, false, normRule);
+                        System.out.println("\tPaired with result table " + r_table_idx);
+                        System.out.println("\tcorrDet: " + corrDet);
+                        if(corrDet == 0) {
+                            scoreMatrix[gt_table_idx][r_table_idx] = 0;
+                        } else {
+                            double prec = (double)corrDet / resultAR.size();
+                            double recall = (double)corrDet / gtAR.size();
+                            double f1 = 2*prec*recall/(prec+recall);
+                            System.out.println("\tprec: " + prec);
+                            System.out.println("\trecall: " + recall);
+                            System.out.println("\tf1: " + f1);
+                        }
+                    }
+                    System.out.println();
+                }
+            } else {
+                System.out.println("no assignment found!");
+            }
+        }
     }
 
 	//  Returns the contents of the file in a byte array.
