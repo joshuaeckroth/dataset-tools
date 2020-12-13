@@ -192,10 +192,13 @@ public class OutputHTMLTables
     	{
     		tableNo ++;
     		System.out.println("Processing Table " + tableNo);
-    		Element tableElement = (Element)tableNodes.item(t);
-    		Table tab = new Table(tableElement, normRule);
-    		
-    		tab.addAsXHTML(resultDocument, newBodyElement, tableNo);
+            Element tableElement = (Element)tableNodes.item(t);
+            NodeList regionNodes = tableElement.getElementsByTagName("region");
+            for (int r = 0; r < regionNodes.getLength(); r ++)
+            {
+                Table tab = new Table(tableElement, normRule, r);
+                tab.addAsXHTML(resultDocument, newBodyElement, tableNo);
+            }
     	}
         
 //    	return resultDocument;

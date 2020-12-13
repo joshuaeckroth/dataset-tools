@@ -25,38 +25,35 @@ public class Table
 	
 	// TODO: look at col and row increments!
 	// TODO: complain if cell gets reassigned!
-	public Table(Element tableElement, int normRule)
-	{
-		this.normRule = normRule;
-		cellMatrix = new ArrayList<List<String>>();
-		
-		// loop through regions
-		NodeList regionNodes = tableElement.getElementsByTagName("region");
-		for (int r = 0; r < regionNodes.getLength(); r ++)
-		{
-			Element regionElement = (Element)regionNodes.item(r);
-			pageNo = Integer.parseInt(regionElement.getAttribute("page"));
-			// loop through cells
-			// TODO: look at col and row increments!
-			int colIncrement = 0;
-			if (regionElement.hasAttribute("col-increment"))
-				colIncrement = Integer.parseInt(regionElement.getAttribute("col-increment"));
-			int rowIncrement = 0;
-			if (regionElement.hasAttribute("row-increment"))
-				rowIncrement = Integer.parseInt(regionElement.getAttribute("row-increment"));
-			
-	    	NodeList cellNodes = regionElement.getElementsByTagName("cell");
-			for (int c = 0; c < cellNodes.getLength(); c ++)
-			{
-				Element cellElement = (Element)cellNodes.item(c);
-//				System.out.println("c: " + c + " adding cell: " + cellElement.getTextContent());
-				if (cellElement.getTextContent() != null)
-//					if (cellElement.getTextContent().replaceAll("\\r|\\n|\\s", "").length() > 0)
-					if (AdjacencyRelation.normalize(cellElement.getTextContent(), normRule).length() > 0)
-						addCell(cellElement, colIncrement, rowIncrement);
-			}
-		}
-	}
+	public Table(Element tableElement, int normRule, int regionNum)
+    {
+        this.normRule = normRule;
+        cellMatrix = new ArrayList<List<String>>();
+
+        // loop through regions
+        NodeList regionNodes = tableElement.getElementsByTagName("region");
+        Element regionElement = (Element)regionNodes.item(regionNum);
+        pageNo = Integer.parseInt(regionElement.getAttribute("page"));
+        // loop through cells
+        // TODO: look at col and row increments!
+        int colIncrement = 0;
+        if (regionElement.hasAttribute("col-increment"))
+            colIncrement = Integer.parseInt(regionElement.getAttribute("col-increment"));
+        int rowIncrement = 0;
+        if (regionElement.hasAttribute("row-increment"))
+            rowIncrement = Integer.parseInt(regionElement.getAttribute("row-increment"));
+
+        NodeList cellNodes = regionElement.getElementsByTagName("cell");
+        for (int c = 0; c < cellNodes.getLength(); c ++)
+        {
+            Element cellElement = (Element)cellNodes.item(c);
+            //				System.out.println("c: " + c + " adding cell: " + cellElement.getTextContent());
+            if (cellElement.getTextContent() != null)
+                //					if (cellElement.getTextContent().replaceAll("\\r|\\n|\\s", "").length() > 0)
+                if (AdjacencyRelation.normalize(cellElement.getTextContent(), normRule).length() > 0)
+                    addCell(cellElement, colIncrement, rowIncrement);
+        }
+    }
 	
 	public int numRows()
 	{

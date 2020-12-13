@@ -646,24 +646,31 @@ public class MeasureRecognitionPerformance
     	for (int t = 0; t < tableNodes.getLength(); t ++)
     	{
     		Element tableElement = (Element)tableNodes.item(t);
-    		// create Table object
-    		Table tab = new Table(tableElement, normRule);
-    		// obtain list of adj relations
-            if(tab.findAdjacencyRelations().size() > 0) {
-                resultTables.add(tab);
+            NodeList regionNodes = tableElement.getElementsByTagName("region");
+            for (int r = 0; r < regionNodes.getLength(); r ++)
+            {
+                // create Table object
+                Table tab = new Table(tableElement, normRule, r);
+                // obtain list of adj relations
+                if(tab.findAdjacencyRelations().size() > 0) {
+                    resultTables.add(tab);
+                }
             }
     	}
     	
     	// do the same for GT
+        System.out.println(inputGTDocument.getElementsByTagName("table").getLength());
     	tableNodes = inputGTDocument.getElementsByTagName("table");
     	for (int t = 0; t < tableNodes.getLength(); t ++)
     	{
     		Element tableElement = (Element)tableNodes.item(t);
-    		// create Table object
-    		Table tab = new Table(tableElement, normRule);
-    		// obtain list of adj relations
-//    		GTARs.add(tab.findAdjacencyRelations());
-    		gtTables.add(tab);
+            NodeList regionNodes = tableElement.getElementsByTagName("region");
+            for (int r = 0; r < regionNodes.getLength(); r ++)
+            {
+                // create Table object
+                Table tab = new Table(tableElement, normRule, r);
+                gtTables.add(tab);
+            }
     	}
 
         /*
