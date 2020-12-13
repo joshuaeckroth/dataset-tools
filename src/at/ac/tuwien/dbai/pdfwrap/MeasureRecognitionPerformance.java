@@ -649,8 +649,9 @@ public class MeasureRecognitionPerformance
     		// create Table object
     		Table tab = new Table(tableElement, normRule);
     		// obtain list of adj relations
-//    		resultARs.add(tab.findAdjacencyRelations());
-    		resultTables.add(tab);
+            if(tab.findAdjacencyRelations().size() > 0) {
+                resultTables.add(tab);
+            }
     	}
     	
     	// do the same for GT
